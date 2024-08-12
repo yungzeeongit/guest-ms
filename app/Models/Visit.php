@@ -16,8 +16,6 @@ class Visit extends Model
         'visit_id',
         'visitor_id',
         'host_id',
-        'check_in_time',
-        'check_out_time',
         'status',
         'purpose'
     ];

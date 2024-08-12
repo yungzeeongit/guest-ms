@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref,Ref, onMounted,onUnmounted, computed, watch } from 'vue';
 import TextInputx from '@/Components/TextInputx.vue';
 import InputLabelx from '@/Components/InputLabelx.vue';
 import PrimaryButtonx from '@/Components/PrimaryButtonx.vue';
@@ -9,18 +9,25 @@ import DeleteConfirmationModal from '@/Components/DeleteConfirmatiomModal.vue'
 
 // Props
 const props = defineProps({
-    hosts: Array<Data>
+    hosts:  {
+        type: Array as () => Array<Data>,
+            default: () => [],
+    }
 });
 
 // Delete confirmation modal
 const deleteConfirmationMessage = ref("Are you sure you want to delete this Host?");
 const deleteConfirmButtonText = ref("Yes, I'm sure");
 const deleteCancelButtonText = ref("No, cancel");
+const filteredHosts = ref([...props.hosts]) ;
+const currentPage = ref(1);
+const pageSize = ref(10);
 
 const showModal = ref<boolean>(false);
 const editMode = ref<boolean>(false);
 const deleteModal = ref<boolean>(false);
 const currentId = ref<string>('');
+const searchQuery = ref('')
 
 interface Data {
     host_id: number,
@@ -108,6 +115,35 @@ const closeModal = () => {
     showModal.value = false;
     editMode.value = false;
 };
+
+const searchHosts = () => {
+      const query = searchQuery.value.toLowerCase();
+      if (query.length > 0) {
+        filteredHosts.value = props.hosts.filter((host) =>
+          Object.values(host).some((value) =>
+            value && value.toString().toLowerCase().includes(query)
+          )
+        );
+      } else {
+        filteredHosts.value = [...props.hosts];
+      }
+      console.log(filteredHosts.value);
+    };
+  
+    const paginatedVisits = computed(() => {
+      const start = (currentPage.value - 1) * pageSize.value;
+      const end = start + pageSize.value;
+      return filteredHosts.value.slice(start, end);
+    });
+
+    const totalPages = computed(() => {
+      return Math.ceil(filteredHosts.value.length / pageSize.value);
+    });
+
+    watch(() => props.hosts, (newHosts) => {
+        searchHosts();
+    });
+
 </script>
 
 <template>
@@ -115,7 +151,7 @@ const closeModal = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800">Dashboard</h2>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Guest Manager</h2>
         </template>
 
         <div class="py-12">
@@ -130,6 +166,8 @@ const closeModal = () => {
                                         <path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"></path>
                                     </svg>
                                 </button>
+                                <input type="text" v-model="searchQuery" @input="searchHosts" placeholder="Search..."
+                                class="search-input rounded-lg ml-20" />
 
                                 <div v-show="showModal" class="fixed inset-0 bg-black bg-opacity-50"></div>
                                 <div :class="{ 'hidden': !showModal }" id="static-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="flex overflow-y-auto overflow-x-hidden fixed top-1/2 right-1/2 left-1/2 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
@@ -264,7 +302,7 @@ const closeModal = () => {
                             </tr>
                             </thead>
                             <tbody>
-                            <tr v-for="host in hosts" :key="host.host_id" class="bg-white border-b hover:bg-gray-50">
+                            <tr v-for="host in paginatedVisits" :key="host.host_id" class="bg-white border-b hover:bg-gray-50">
                                 <td class="w-4 p-4">
                                     <div class="flex items-center">
                                         <input id="checkbox-table-search-1" type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
@@ -296,6 +334,23 @@ const closeModal = () => {
 
                             </tbody>
                         </table>
+
+                        <div class="flex flex-wrap items-center justify-center p-4 space-y-4 bg-white flex-column md:flex-row md:space-y-0">
+      <button
+        :disabled="currentPage === 1"
+        @click="currentPage--"
+        class="inline-flex items-center mr-3 px-3 py-1 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-2"      >
+        Prev
+      </button>
+      <span>Page {{ currentPage }} of {{ totalPages }}</span>
+      <button
+        :disabled="currentPage === totalPages"
+        @click="currentPage++"
+      class="inline-flex items-center ml-3 px-3 py-1 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-2"
+      >
+        Next
+      </button>
+    </div>
                     </div>
                 </div>
             </div>

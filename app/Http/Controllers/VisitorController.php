@@ -10,36 +10,28 @@ use Inertia\Response;
 
 class VisitorController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-
+   
     protected string  $visitor = '';
 
     public function __construct(Visitor $visitor)
     {
-//        $this->middleware('auth:api');
+
         $this->visitor = $visitor;
     }
     public function index():Response
     {
-        //
+        
         $visitors = Visitor::all();
         return Inertia::render('Visitors', [
             'visitors' => $visitors,
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+   
     public function create(Request  $request)
     {
 
-//        $visitor = User::create($request->validated());
-//        return response()->json($visitor, 201);
-//        return Inertia::render('Dashboard');
-//        return Redirect::to('/dashboard');
+
     }
 
     /**

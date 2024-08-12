@@ -1,14 +1,17 @@
 <?php
 
 namespace App\Http\Controllers;
-//use App\Http\Requests\VisitorRequest;
+
 use App\Models\Host;
 use Inertia\Inertia;
 use App\Models\Visit;
 use Inertia\Response;
 use App\Models\Visitor;
 use Illuminate\Http\Request;
+use App\Mail\NewVisitNotification;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redirect;
+
 
 class VisitController extends Controller
 {
@@ -20,67 +23,43 @@ class VisitController extends Controller
 
     public function __construct(Visit $visit)
     {
-//       ;
+        //       ;
         $this->visit = $visit;
     }
 
     public function index(): Response
     {
-        $visits = Visit::with(['visitor', 'host'])->get();
+        $visits = Visit::with(['visitor', 'host'])->latest()->get();
 
         $visitsData = $visits->map(function ($visit) {
             return [
                 'visit_id' => $visit->visit_id,
-                'check_in_time' => $visit->check_in_time,
-                'check_out_time' => $visit->check_out_time,
                 'purpose' => $visit->purpose,
                 'status' => $visit->status,
+                'check_in_time' => $visit->created_at,
+                'check_out_time' => $visit->updated_at,
                 'visitor_name' => $visit->visitor->full_name,
                 'host_name' => $visit->host->host_name,
+                'duration' => $visit->duration
             ];
         });
 
-         // Collect all visitor names for suggestions
-         $visitorNames = Visitor::select('id', 'full_name')->get();
-         $hostNames = Host::select('host_id', 'host_name')->get();
+        // Collect all visitor names for suggestions
+        $visitorNames = Visitor::select('id', 'full_name')->get();
+        $hostNames = Host::select('host_id', 'host_name')->get();
 
-         $allVisitors = Visitor::all();
-         $allHosts = Host::all();
+        $allVisitors = Visitor::all();
+        $allHosts = Host::all();
 
         return Inertia::render('Visits', [
             'visits' => $visitsData,
             'visitorNames' => $visitorNames,
-             'hostNames'  => $hostNames,
-             'allHosts' => $allHosts,
-             'allVisitors' => $allVisitors
+            'hostNames'  => $hostNames,
+            'allHosts' => $allHosts,
+            'allVisitors' => $allVisitors
         ]);
     }
- 
-    // public function index(): Response
-    // {
-    //     $visits = Visit::with(['visitor', 'host'])->get();
 
-    //     $visitsData = $visits->map(function ($visit) {
-    //         return [
-    //             'visit_id' => $visit->visit_id,
-    //             'date' => $visit->date,
-    //             'check_in_time' => $visit->check_in_time,
-    //             'check_out_time' => $visit->check_out_time,
-    //             'purpose' => $visit->purpose,
-    //             'status' => $visit->status,
-    //             'visitor_name' => $visit->visitor->full_name,
-    //             'visitor_email' => $visit->visitor->email,
-    //             'visitor_company' => $visit->visitor->company,
-    //             'host_name' => $visit->host->host_name,
-    //             'host_department' => $visit->host->host_department,
-    //             'host_position' => $visit->host->host_position,
-    //         ];
-    //     });
-
-    //     return Inertia::render('Visits', [
-    //         'visits' => $visitsData,
-    //     ]);
-    // }
 
 
     /**
@@ -90,50 +69,53 @@ class VisitController extends Controller
     {
 
 
+        return Inertia::render('Dashboard', [
+            'visits' => Visit::all(), // Adjust as needed
+            'allVisitors' => Visitor::all(),
+            'allHosts' => Host::all(),
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    // public function store(Request $request)
-
-
 
     public function store(Request $request)
-{
-    // Validate the request data
-    $request->validate([
-        'visitor_name' => 'required|string|max:255',
-       
-        
-        'host_name' => 'required|string|max:255',
-        
-       
-      
-        'check_in_time' => 'required',
-        'check_out_time' => 'required',
-        'purpose' => 'required|string|max:255',
-        'status' => 'required|string|max:255',
-    ]);
+    {
+        // Validate the request data
+        $request->validate([
+            'visitor_name' => 'required|string|max:255',
+            'host_name' => 'required|string|max:255',
+            'purpose' => 'required|string|max:255',
+            'status' => 'required|string|max:255',
+            'duration' => 'required',
 
-    // Fetch visitor_id from the visitors table
-    $visitor = Visitor::where('full_name', $request->visitor_name)
-        ->firstOrFail();
+        ]);
 
-    // Fetch host_id from the hosts table
-    $host = Host::where('host_name', $request->host_name)
-        ->firstOrFail();
 
-    // Create the visit with the fetched ids
-    $visit = Visit::create([
-        'visitor_id' => $visitor->id,
-        'host_id' => $host->host_id,
-        'check_in_time' => $request->check_in_time,
-        'check_out_time' => $request->check_out_time,
-        'purpose' => $request->purpose,
-        'status' => $request->status,
-    ]);
-}
+        $visitor = Visitor::where('full_name', $request->visitor_name)
+            ->firstOrFail();
+
+
+        $host = Host::where('host_name', $request->host_name)
+            ->firstOrFail();
+
+
+
+        $visit = Visit::create([
+            'visitor_id' => $visitor->id,
+            'host_id' => $host->host_id,
+            'purpose' => $request->purpose,
+            'status' => 'visit-in',
+            'duration' => $request->duration,
+            'updated_at' => 'pending'
+        ]);
+
+        $hostEmail = $host->host_email;
+
+
+        Mail::to($hostEmail)->send(new NewVisitNotification($visit));
+    }
 
 
     /**
@@ -141,7 +123,7 @@ class VisitController extends Controller
      */
     public function show(string $id)
     {
-        $visitors = Visitor::all(); // Adjust according to your actual data fetching logic
+        $visitors = Visitor::all();
 
         return response()->json([
             'visitors' => $visitors
@@ -153,17 +135,30 @@ class VisitController extends Controller
      */
     public function edit(string $id)
     {
-     
     }
 
-    //*
 
-//     public function search(Request $request)
-// {
-//     $query = $request->input('query');
-//     $visitors = Visitor::where('name', 'LIKE', "%{$query}%")->get(['id', 'full_name']); // Adjust the fields as needed
-//     return response()->json($visitors);
-// }
+
+    public function checkout(Request $request, $visit_id)
+    {
+        // Find the visit record or fail if it doesn't exist
+        $visit = Visit::findOrFail($visit_id);
+
+        // Validate only the fields we want to update
+        $request->validate([
+            'status' => 'required|string|max:255',
+            'duration' => 'required'
+        ]);
+
+        // Update the necessary fields
+        $visit->status = $request->input('status');
+        $visit->duration = $request->input('duration');
+
+        // Save the updated visit record
+        $visit->save();
+
+        echo (response()->json(['message' => 'Visit status updated successfully']));
+    }
 
 
 
@@ -178,23 +173,21 @@ class VisitController extends Controller
         $request->validate([
             'visitor_name' => 'required|string|max:255',
             'host_name' => 'required|string|max:255',
-        
-            'check_in_time' => 'required',
-            'check_out_time' => 'required',
+
             'purpose' => 'required|string|max:255',
             'status' => 'required|string|max:255',
         ]);
-    
+
         // Fetch visitor_id from the visitors table
         $visitor = Visitor::where('full_name', $request->visitor_name)
             ->firstOrFail();
-    
+
         // Fetch host_id from the hosts table
         $host = Host::where('host_name', $request->host_name)
             ->firstOrFail();
 
-      
-        
+
+
 
 
         // Update the visitor
@@ -204,16 +197,12 @@ class VisitController extends Controller
         return redirect()->back()->with('success', 'Host has been updated successfully.');
     }
 
-//     /**
-//      * Remove the specified resource from storage.
-//      */
-// //    public function destroy(string $id)
+    //     /**
+    //      * Remove the specified resource from storage.
+    //      */
+    // /
     public function destroy(Visit $visit)
     {
-
-        
-    
-        
         $visit->delete();
     }
 }

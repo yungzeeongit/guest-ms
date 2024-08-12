@@ -24,6 +24,7 @@ const submit = () => {
 
 <template>
     <GuestLayout>
+         <!--- place holder for login or register header text-->
         <Head title="Register" />
 
         <form @submit.prevent="submit">

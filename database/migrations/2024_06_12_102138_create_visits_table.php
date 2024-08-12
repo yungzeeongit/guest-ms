@@ -15,10 +15,9 @@ return new class extends Migration
             $table->id('visit_id');
             $table->foreignId('visitor_id')->constrained('visitors')->onDelete('cascade');
             $table->foreignId('host_id')->constrained('users')->onDelete('cascade');
-            $table->time('check_in_time');
-            $table->time('check_out_time')->nullable();
             $table->text('purpose')->nullable();
             $table->string('status');
+            $table->integer('duration')->nullable();
             $table->timestamps();
         });
     }
