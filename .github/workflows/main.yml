@@ -15,6 +15,6 @@ jobs:
     - name: 📂 Sync files
       uses: SamKirkland/FTP-Deploy-Action@4.3.3
       with:
-        server:  ftp.avissmartterminal.com.ng
-        username:  git-visitor@avissmartterminal.com.ng
-        password: git-visitor#####
+        server:  ftp.techsterlab.com
+        username:  vms@techsterlab.com
+        password: Visitor###
